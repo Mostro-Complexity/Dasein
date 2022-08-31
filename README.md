@@ -9,8 +9,8 @@ from math import pow
 import abcdefg as newname
 
 // 结构体
-type student struct {
-    grade: int32: "json:A"  // 有注解即公共变量，否则为私有
+student: struct {
+    grade: int32: "json:A"  
     age: uint8: "json:B"
     name: string: "json:C"
 }
@@ -21,7 +21,7 @@ if a := foo(); a != None {
 }
 
 // 函数定义
-func student::foo() -> student {
+student::foo: () -> student {
     return self
 }
 student::foo := () -> student {
@@ -29,12 +29,12 @@ student::foo := () -> student {
 }
 
 // 接口定义
-type human interface {
+human: interface {
     foo1(name: string, age: int32) -> string
 }
 
 // 程序入口
-func main(argc: string, argv: [,]interface{}) {
+main(argc: string, argv: [,]interface{}) {
     a := [, 4]int32 {   // array, 接近于原生numpy
         {0, 0, 0, 0},
         {1, 2, 3, 4},
