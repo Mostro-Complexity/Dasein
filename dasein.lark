@@ -1,17 +1,10 @@
-?start: dict
-        | list
-        | string
-        | SIGNED_NUMBER      -> number
-        | "true"             -> true
-        | "false"            -> false
-        | "null"             -> null
-
-list : "[" [start ("," start)*] "]"
-
-dict : "{" [pair ("," pair)*] "}"
-pair : string ":" start
+?start : claim ":" type_definition
+type_definition : struct_definition | basic_definition | interface_definition
+struct_definition : "struct" "{" struct_defbody "}"
+struct_defbody : start*
 
 string : ESCAPED_STRING
+typename : /^[a-zA-Z_]+[\w]*/
 
 %import common.ESCAPED_STRING
 %import common.SIGNED_NUMBER
