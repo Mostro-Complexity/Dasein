@@ -1,0 +1,39 @@
+?start: expression
+expression: param operator param
+param: typename | num | expression
+num : SIGNED_NUMBER
+
+operator : "+" -> add
+        | "-" -> minus
+        | "*" -> multiply
+        | "/" -> divide
+        | "&" -> bitwise_and
+        | "|" -> bitwise_or
+        | "~" -> bitwise_not
+        | "=" -> assign_value
+        | "+=" -> add_assign
+        | "-=" -> minus_assign
+        | "&&" -> logical_and
+        | "||" -> logical_or
+        | "!" -> logical_not
+        | ">" -> bigger
+        | "<" -> smaller
+        | ">=" -> bigger_or_equal
+        | "<=" -> smaller_or_equal        
+        | "==" -> equal
+        | "!=" -> not_equal
+
+typename : CNAME
+
+%import common.SIGNED_NUMBER
+%import common.CNAME
+%import common.WS
+%ignore WS        
+
+
+
+        
+
+
+
+        

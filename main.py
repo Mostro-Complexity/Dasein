@@ -28,12 +28,19 @@ class TreeToJson(Transformer):
     def false(self, _): return False
 
 
-json_parser = Lark.open('dasein.lark', rel_to=__file__, parser='lalr')
-text = '''student: struct {
-    grade: int32
-    age: uint8
-    name: string
-}'''
+# json_parser = Lark.open('dasein.lark', rel_to=__file__, parser='lalr')
+# text = '''student: struct {
+#     grade: int32
+#     age: uint8
+#     name: string
+# }'''
+# tree = json_parser.parse(text)
+# print(tree.pretty())
+# print(TreeToJson().transform(tree))
+
+json_parser = Lark.open('expression.lark', rel_to=__file__, parser='lalr')
+text = '9-name+3*4.2!= 1 && name>= 8'
 tree = json_parser.parse(text)
 print(tree.pretty())
 print(TreeToJson().transform(tree))
+
