@@ -20,8 +20,14 @@ if a := foo(); a != None {
     a.grade += 1
 }
 
-// 函数定义
+// 函数声明
 student::foo: () -> student {
+    return self
+}
+student::foo: noexcept () -> student {
+    return self
+}
+extern student::foo: () -> student {
     return self
 }
 student::foo := () -> student {
@@ -30,11 +36,11 @@ student::foo := () -> student {
 
 // 接口定义
 human: interface {
-    foo1(name: string, age: int32) -> string
+    foo1: (name: string, age: int32) -> string
 }
 
-// 程序入口
-main(argc: string, argv: [,]interface{}) {
+// 程序入口，main函数仅允许使用extern，否则为内置函数
+extern main(argc: string, argv: [,]interface{}) {
     a := [, 4]int32 {   // array, 接近于原生numpy
         {0, 0, 0, 0},
         {1, 2, 3, 4},

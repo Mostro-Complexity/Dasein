@@ -29,7 +29,7 @@ class TreeToJson(Transformer):
 
 
 json_parser = Lark.open('dasein.lark', rel_to=__file__, parser='lalr')
-text = '''student: struct {
+text = '''intern student: struct {
     grade: int32
     age: uint8
     name: string

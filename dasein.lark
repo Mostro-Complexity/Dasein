@@ -1,19 +1,44 @@
 ?start : claim
-claim : typename ":" type_definition NEWLINE*
-type_definition : struct_definition | basic_definition
+claim : type_claim
 
-struct_definition : "struct" "{" struct_defbody "}"
-struct_defbody : claim*
+type_claim : typename_stmt ":" def_stmt NEWLINE*
 
-basic_definition : "int32" -> int32
-                 | "int64" -> int64
-                 | "float32" -> float32
-                 | "float64" -> float64
-                 | "uint8" -> uint8
-                 | "string" -> string
+// typename statement
+typename_stmt : type_constraint? typename
+typename : CNAME
+type_constraint : "intern" // typename constraint keyword
+
+// definition statement
+def_stmt : struct_defstmt | func_defstmt | interface_defstmt | basic_defstmt
+struct_defstmt : struct_def_constraint? struct_defbody
+func_defstmt : func_def_constraint? func_defbody
+interface_defstmt : interface_defbody
+basic_defstmt : basic_defbody
+
+struct_def_constraint : "with" // definition constraint keyword
+func_def_constraint : "noexcept" // definition constraint keyword
+
+// struct definition body
+struct_defbody : "struct" "{" struct_claims "}"
+struct_claims : claim*
+
+// function definition body
+func_defbody : "(" type_claim* ")" "->" typename "{" executable_stmt "}"
+executable_stmt : "not_implement"
+
+// interface definition body
+interface_defbody : "interface" "{" interface_claims "}"
+interface_claims : "not_implement"// TODO: only takes method and member for now
+
+// basic definition
+basic_defbody : "int32" -> int32
+              | "int64" -> int64
+              | "float32" -> float32
+              | "float64" -> float64
+              | "uint8" -> uint8
+              | "string" -> string
 
 // string : ESCAPED_STRING
-typename : CNAME
 
 %import common.ESCAPED_STRING
 %import common.SIGNED_NUMBER
