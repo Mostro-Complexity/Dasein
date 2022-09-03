@@ -1,12 +1,23 @@
-?start : claim ":" type_definition
-type_definition : struct_definition | basic_definition | interface_definition
-struct_definition : "struct" "{" struct_defbody "}"
-struct_defbody : start*
+?start : claim
+claim : typename ":" type_definition NEWLINE*
+type_definition : struct_definition | basic_definition
 
-string : ESCAPED_STRING
-typename : /^[a-zA-Z_]+[\w]*/
+struct_definition : "struct" "{" struct_defbody "}"
+struct_defbody : claim*
+
+basic_definition : "int32" -> int32
+                 | "int64" -> int64
+                 | "float32" -> float32
+                 | "float64" -> float64
+                 | "uint8" -> uint8
+                 | "string" -> string
+
+// string : ESCAPED_STRING
+typename : CNAME
 
 %import common.ESCAPED_STRING
 %import common.SIGNED_NUMBER
+%import common.NEWLINE
+%import common.CNAME
 %import common.WS
 %ignore WS
