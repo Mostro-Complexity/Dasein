@@ -33,7 +33,19 @@ text = '''intern student: struct {
     grade: int32
     age: uint8
     name: string
-}'''
+}
+
+foo: (a: int64, b: string) -> student {
+    c := "aaaabbbccc"
+    d := 123
+    e := -12
+}
+
+foo1: (a: int64) -> student {
+    fff := "asdfads"
+    e := -12
+}
+'''
 tree = json_parser.parse(text)
 print(tree.pretty())
 print(TreeToJson().transform(tree))

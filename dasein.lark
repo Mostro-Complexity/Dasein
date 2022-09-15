@@ -1,4 +1,4 @@
-?start : claim
+?start : claim*
 claim : type_claim
 
 type_claim : typename_stmt ":" def_stmt NEWLINE*
@@ -23,8 +23,14 @@ struct_defbody : "struct" "{" struct_claims "}"
 struct_claims : claim*
 
 // function definition body
-func_defbody : "(" type_claim* ")" "->" typename "{" executable_stmt "}"
-executable_stmt : "not_implement"
+func_defbody : "(" (typename_stmt ":" def_stmt ("," typename_stmt ":" def_stmt)*)? ")" "->" typename "{" executable_stmt "}"
+executable_stmt : (single_executable_stmt NEWLINE)*
+
+// single line executable statement
+single_executable_stmt : varname ":=" basic_varbody
+
+// varname statement
+varname : CNAME
 
 // interface definition body
 interface_defbody : "interface" "{" interface_claims "}"
@@ -38,10 +44,14 @@ basic_defbody : "int32" -> int32
               | "uint8" -> uint8
               | "string" -> string
 
+basic_varbody : ESCAPED_STRING | SIGNED_FLOAT | SIGNED_INT | INT | FLOAT
 // string : ESCAPED_STRING
 
 %import common.ESCAPED_STRING
-%import common.SIGNED_NUMBER
+%import common.SIGNED_FLOAT
+%import common.SIGNED_INT
+%import common.INT
+%import common.FLOAT
 %import common.NEWLINE
 %import common.CNAME
 %import common.WS
