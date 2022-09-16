@@ -2,16 +2,20 @@
 claim : type_claim
 
 type_claim : typename_stmt ":" def_stmt NEWLINE*
+param_claim : typename ":" def_stmt NEWLINE*
 
 // typename statement
 typename_stmt : type_constraint? typename
 typename : CNAME
 type_constraint : "intern" // typename constraint keyword
 
+// function input/output parameters
+func_input_params : (param_claim ("," param_claim)*)? 
+func_output_params : (typename ("," typename)*)?
+
 // definition statement
-def_stmt : struct_defstmt | func_defstmt | interface_defstmt | basic_defstmt
+def_stmt : struct_defstmt | func_definition | interface_defstmt | basic_defstmt
 struct_defstmt : struct_def_constraint? struct_defbody
-func_defstmt : func_def_constraint? func_defbody
 interface_defstmt : interface_defbody
 basic_defstmt : basic_defbody
 
@@ -23,7 +27,7 @@ struct_defbody : "struct" "{" struct_claims "}"
 struct_claims : claim*
 
 // function definition body
-func_defbody : "(" (typename_stmt ":" def_stmt ("," typename_stmt ":" def_stmt)*)? ")" "->" typename "{" executable_stmt "}"
+func_definition : func_def_constraint? "(" func_input_params ")" "->" (typename | "(" func_output_params ")") "{" executable_stmt "}"
 executable_stmt : (single_executable_stmt NEWLINE)*
 
 // single line executable statement
