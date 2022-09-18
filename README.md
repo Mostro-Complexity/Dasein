@@ -8,7 +8,14 @@ import math
 from math import pow
 import abcdefg as newname
 
-// 结构体
+// 声明结构体
+type student struct {
+    grade: int32
+    age: uint8
+    name: string
+}
+
+// 实例化未初始化的结构体（字段均为随机值）
 student: struct {
     grade: int32: "json:A"  
     age: uint8: "json:B"
@@ -21,26 +28,32 @@ if a := foo(); a != None {
 }
 
 // 函数声明
-student::foo: () -> student {
+func init_student(grade: int32, age: uint8, name: string) -> student {
+    return student{grade: grade, age: age, name: name}
+}
+
+// 静态函数
+func student::foo_static() -> student {
     return self
 }
-student::foo: noexcept () -> student {
-    return self
+
+// 基本成员函数（默认公有）
+func student::foo(stu: this, some_val: int64) -> string {
+    return string(some_val)
 }
-extern student::foo: () -> student {
-    return self
-}
-student::foo := () -> student {
-    return self
+
+// 基本成员函数（私有）
+intern func student::foo(stu: this) -> student {
+    return this
 }
 
 // 接口定义
-human: interface {
-    foo1: (name: string, age: int32) -> string
+type human interface {
+    foo1(name: string, age: int32) -> string
 }
 
-// 程序入口，main函数仅允许使用extern，否则为内置函数
-extern main(argc: string, argv: [,]interface{}) {
+// 程序入口，main函数仅允许使用intern
+intern func main(argc: string, argv: [,]interface{}) {
     a := [, 4]int32 {   // array, 接近于原生numpy
         {0, 0, 0, 0},
         {1, 2, 3, 4},

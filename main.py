@@ -32,20 +32,24 @@ class Parameter(object):
 
 
 class Function(object):
-    def __init__(self, place, inputs, outputs) -> None:
+    def __init__(self, name, place=None, inputs=None, outputs=None, code=None) -> None:
         self.place = place
         self.inputs = inputs
         self.outputs = outputs
+        self.name = name
+        self.code = code
 
     def __repr__(self) -> str:
         if isinstance(self.outputs, Token):
-            return "Function(place={:s}, inputs={:s}, outputs={:s})".format(
+            return "Function(name={:s}, place={:s}, inputs={:s}, outputs={:s})".format(
+                self.name,
                 str(self.place),
                 ", ".join([str(i) for i in self.inputs]),
                 str(self.outputs)
             )
         else:
-            return "Function(place={:s}, inputs={:s}, outputs={:s})".format(
+            return "Function(name={:s}, place={:s}, inputs={:s}, outputs={:s})".format(
+                self.name,
                 str(self.place),
                 ", ".join([str(i) for i in self.inputs]),
                 ", ".join([str(i) for i in self.outputs])
@@ -53,7 +57,15 @@ class Function(object):
 
 
 class LexTransformer(Transformer):
+    def __init__(self, visit_tokens: bool = True, out_path: str = None) -> None:
+        super().__init__(visit_tokens)
+        self.out_path = out_path
+
     def start(self, items):
+        for i in items:
+            if isinstance(i, Function) and i.name == "main" and self.out_path is not None:
+                with open(self.out_path, mode='w', encoding='utf-8') as f:
+                    f.writelines('\n'.join(i.code))
         return items
 
     def string(self, s):
@@ -70,6 +82,9 @@ class LexTransformer(Transformer):
         return dict(items)
 
     def claim(self, items):
+        return items[0]
+
+    def type_claim(self, items):
         return items
 
     def typename(self, items):
@@ -111,7 +126,7 @@ class LexTransformer(Transformer):
     def basic_defstmt(self, items):
         return items[0]
 
-    def def_stmt(self, items):
+    def definition(self, items):
         return items[0]
 
     def type_claim(self, items):
@@ -174,9 +189,13 @@ class LexTransformer(Transformer):
         return items
 
     def func_definition(self, items):
-        if isinstance(items[0], Token):
+        if items[0].type == 'func_constraint':
             raise NotImplemented
-        return Function(place=items[2].place, inputs=items[0], outputs=items[1])
+        else:
+            return Function(
+                name=items[0].value, place=items[-1].place,
+                inputs=items[-3], outputs=items[-2], code=items[-1].code
+            )
 
     def null(self, _): return None
     def true(self, _): return True
@@ -184,23 +203,23 @@ class LexTransformer(Transformer):
 
 
 json_parser = Lark.open('dasein.lark', rel_to=__file__, parser='lalr')
-text = '''intern student: struct {
+text = '''intern type student struct {
     grade: int32
     age: uint8
     name: string
 }
 
-foo: (a: int64, b: string) -> (student, cat) {
+func main(a: int64, b: string) -> (student, cat) {
     c := "aaaabbbccc"
     d := 123 + 12
     e := -12
 }
 
-foo1: (a: int64) -> student {
+func foo1(a: int64) -> student {
     fff := "asdfads"
     e := -12
 }
 '''
 tree = json_parser.parse(text)
 print(tree.pretty())
-print(LexTransformer().transform(tree))
+print(LexTransformer(out_path="output.txt").transform(tree))

@@ -1,8 +1,8 @@
 ?start : claim*
-claim : type_claim
+claim : definition NEWLINE*
 
-type_claim : typename_stmt ":" def_stmt NEWLINE*
-param_claim : typename ":" def_stmt NEWLINE*
+param_claim : typename ":" basic_definition NEWLINE*
+field_claim : typename ":" basic_definition NEWLINE*
 
 // typename statement
 typename_stmt : type_constraint? typename
@@ -13,21 +13,17 @@ type_constraint : "intern" // typename constraint keyword
 func_input_params : (param_claim ("," param_claim)*)? 
 func_output_params : (typename ("," typename)*)?
 
-// definition statement
-def_stmt : struct_defstmt | func_definition | interface_defstmt | basic_defstmt
-struct_defstmt : struct_def_constraint? struct_defbody
-interface_defstmt : interface_defbody
-basic_defstmt : basic_defbody
+// definition body
+definition : struct_definition | func_definition | interface_definition | field_claim
 
-struct_def_constraint : "with" // definition constraint keyword
-func_def_constraint : "noexcept" // definition constraint keyword
+struct_constraint : "intern" // definition constraint keyword
+func_constraint : "noexcept" // definition constraint keyword
 
 // struct definition body
-struct_defbody : "struct" "{" struct_claims "}"
-struct_claims : claim*
+struct_definition : struct_constraint? "type" typename "struct" "{" field_claim* "}"
 
 // function definition body
-func_definition : func_def_constraint? "(" func_input_params ")" "->" (typename | "(" func_output_params ")") "{" executable_stmt "}"
+func_definition : func_constraint? "func" typename "(" func_input_params ")" "->" (typename | "(" func_output_params ")") "{" executable_stmt "}"
 executable_stmt : (single_executable_stmt NEWLINE)*
 
 // single line executable statement
@@ -37,16 +33,16 @@ single_executable_stmt : varname ":=" basic_varbody
 varname : CNAME
 
 // interface definition body
-interface_defbody : "interface" "{" interface_claims "}"
+interface_definition : "type" typename "interface" "{" interface_claims "}"
 interface_claims : "not_implement"// TODO: only takes method and member for now
 
 // basic definition
-basic_defbody : "int32" -> int32
-              | "int64" -> int64
-              | "float32" -> float32
-              | "float64" -> float64
-              | "uint8" -> uint8
-              | "string" -> string
+basic_definition : "int32" -> int32
+                 | "int64" -> int64
+                 | "float32" -> float32
+                 | "float64" -> float64
+                 | "uint8" -> uint8
+                 | "string" -> string
 
 basic_varbody : ESCAPED_STRING -> literal_string
               | SIGNED_FLOAT -> literal_signed_float
