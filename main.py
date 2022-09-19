@@ -65,7 +65,7 @@ class LexTransformer(Transformer):
         for i in items:
             if isinstance(i, Function) and i.name == "main" and self.out_path is not None:
                 with open(self.out_path, mode='w', encoding='utf-8') as f:
-                    f.writelines('\n'.join(i.code))
+                    f.write('\n'.join(i.code))
         return items
 
     def string(self, s):
@@ -90,10 +90,10 @@ class LexTransformer(Transformer):
     def typename(self, items):
         return Token(value=items[0].value, type="typename")
 
-    def basic_expression(self, items):
+    def sum(self, items):
         return items
 
-    def basic_varbody(self, items):
+    def atom(self, items):
         return items[0]
 
     def literal_string(self, items):
@@ -123,9 +123,6 @@ class LexTransformer(Transformer):
     def string(self, items):
         return Token(value="string", type="basic_defination")
 
-    def basic_defstmt(self, items):
-        return items[0]
-
     def definition(self, items):
         return items[0]
 
@@ -136,7 +133,7 @@ class LexTransformer(Transformer):
         id = uuid.uuid4()
         return Parameter(place=str(id), type=items[1].value)
 
-    def add_expression(self, items):
+    def add(self, items):
         id = uuid.uuid4()
         code = []
         code.extend(items[0].code)
@@ -144,7 +141,7 @@ class LexTransformer(Transformer):
         code.append("{:s} := {:s} + {:s}".format(str(id), items[0].place, items[1].place))
         return Variable(code=code, place=str(id), type="var")
 
-    def minus_expression(self, items):
+    def sub(self, items):
         id = uuid.uuid4()
         code = []
         code.extend(items[0].code)
@@ -152,7 +149,7 @@ class LexTransformer(Transformer):
         code.append("{:s} := {:s} - {:s}".format(str(id), items[0].place, items[1].place))
         return Variable(code=code, place=str(id), type="var")
 
-    def multiply_expression(self, items):
+    def mul(self, items):
         id = uuid.uuid4()
         code = []
         code.extend(items[0].code)
@@ -160,7 +157,7 @@ class LexTransformer(Transformer):
         code.append("{:s} := {:s} * {:s}".format(str(id), items[0].place, items[1].place))
         return Variable(code=code, place=str(id), type="var")
 
-    def divide_expression(self, items):
+    def div(self, items):
         id = uuid.uuid4()
         code = []
         code.extend(items[0].code)
@@ -168,13 +165,14 @@ class LexTransformer(Transformer):
         code.append("{:s} := {:s} / {:s}".format(str(id), items[0].place, items[1].place))
         return Variable(code=code, place=str(id), type="var")
 
-    def single_executable_stmt(self, items):
+    def single_statement(self, items):
         id = uuid.uuid4()
         code = []
+        code.extend(items[1].code)
         code.append("{:s} := {:s}".format(str(id), items[1].place))
         return Variable(code=code, place=str(id), type="var")
 
-    def executable_stmt(self, items):
+    def statements(self, items):
         id = uuid.uuid4()
         code = []
         for i in items:
@@ -211,7 +209,7 @@ text = '''intern type student struct {
 
 func main(a: int64, b: string) -> (student, cat) {
     c := "aaaabbbccc"
-    d := 123 + 12
+    d := 123 + 12 * 99 - 1
     e := -12
 }
 

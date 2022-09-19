@@ -23,11 +23,11 @@ func_constraint : "noexcept" // definition constraint keyword
 struct_definition : struct_constraint? "type" typename "struct" "{" field_claim* "}"
 
 // function definition body
-func_definition : func_constraint? "func" typename "(" func_input_params ")" "->" (typename | "(" func_output_params ")") "{" executable_stmt "}"
-executable_stmt : (single_executable_stmt NEWLINE)*
+func_definition : func_constraint? "func" typename "(" func_input_params ")" "->" (typename | "(" func_output_params ")") "{" statements "}"
+statements : (single_statement NEWLINE)*
 
 // single line executable statement
-single_executable_stmt : varname ":=" basic_varbody
+single_statement : varname ":=" sum
 
 // varname statement
 varname : CNAME
@@ -44,17 +44,22 @@ basic_definition : "int32" -> int32
                  | "uint8" -> uint8
                  | "string" -> string
 
-basic_varbody : ESCAPED_STRING -> literal_string
-              | SIGNED_FLOAT -> literal_signed_float
-              | SIGNED_INT -> literal_signed_int
-              | INT -> literal_int
-              | FLOAT -> literal_float
-              | basic_expression
+atom : ESCAPED_STRING -> literal_string
+     | SIGNED_FLOAT -> literal_signed_float
+     | SIGNED_INT -> literal_signed_int
+     | INT -> literal_int
+     | FLOAT -> literal_float
+     | "-" atom
+     | varname
+     | "(" sum ")"
 
-basic_expression : basic_varbody "+" basic_varbody -> add_expression
-                 | basic_varbody "-" basic_varbody -> minus_expression
-                 | basic_varbody "*" basic_varbody -> multiply_expression
-                 | basic_varbody "/" basic_varbody -> divide_expression
+?sum : product
+     | sum "+" product   -> add
+     | sum "-" product   -> sub
+
+?product: atom
+        | product "*" atom  -> mul
+        | product "/" atom  -> div
 
 %import common.ESCAPED_STRING
 %import common.SIGNED_FLOAT
