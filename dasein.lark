@@ -11,7 +11,7 @@ type_constraint : "intern" // typename constraint keyword
 
 // function input/output parameters
 func_input_params : (param_claim ("," param_claim)*)? 
-func_output_params : (typename ("," typename)*)?
+func_output_params : typename | ("(" (typename ("," typename)*)? ")") 
 
 // definition body
 definition : struct_definition | func_definition | interface_definition | field_claim
@@ -23,7 +23,7 @@ func_constraint : "noexcept" // definition constraint keyword
 struct_definition : struct_constraint? "type" typename "struct" "{" field_claim* "}"
 
 // function definition body
-func_definition : func_constraint? "func" typename "(" func_input_params ")" "->" (typename | "(" func_output_params ")") "{" statements "}"
+func_definition : func_constraint? "func" typename "(" func_input_params ")" "->" func_output_params "{" statements "}"
 statements : (single_statement NEWLINE)*
 
 // single line executable statement
