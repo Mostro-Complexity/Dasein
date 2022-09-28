@@ -21,13 +21,10 @@ class RecursiveTransformerWithContext(object):
 
     def transform(self, context: NamedDict, tree: Tree[TypeVar('_Leaf_T')]) -> Tree[TypeVar('_Leaf_T')]:
         "Visit the tree, starting at the root, and ending at the leaves"
-        context, _ = self._call_forwardfunc(context, tree)
 
-        for child in tree.children:
-            if isinstance(child, Tree):
-                context, _ = self.transform(context, child)
+        if isinstance(tree, Tree):
+            context, _ = self._call_userfunc(context, tree)
 
-        context, _ = self._call_backwardfunc(context, tree)
         return context, tree
 
     def __default__(self, context, children):
@@ -35,7 +32,6 @@ class RecursiveTransformerWithContext(object):
 
         Can be overridden. Defaults to creating a new copy of the tree node (i.e. ``return Tree(data, children, meta)``)
         """
-        assert tree.data.value != "func_definition"
         return context, children
 
     def _call_forwardfunc(self, context, tree):
@@ -50,11 +46,19 @@ class RecursiveTransformerWithContext(object):
         elif isinstance(tree.data, str):
             return getattr(self, tree.data, self.__default__)(context, tree)
 
+    def _call_userfunc(self, context, tree):
+        if isinstance(tree.data, Token):
+            return getattr(self, tree.data.value, self.__default__)(context, tree.children)
+        elif isinstance(tree.data, str):
+            return getattr(self, tree.data, self.__default__)(context, tree)
+
 
 class IRTransformer(RecursiveTransformerWithContext):
 
-    # def start(self, context, items):
-    #     return context, items
+    def start(self, context, items):
+        for i in items:
+            context, _ = getattr(self, i.data, self.__default__)(context, i.children)
+        return context, items
 
     # def string(self, context, s):
     #     return context, s
@@ -69,8 +73,13 @@ class IRTransformer(RecursiveTransformerWithContext):
     # def dict(self, context, items):
     #     return context, dict(items)
 
-    # def claim(self, context, items):
-    #     return context, items
+    def claim(self, context, items):
+        context, _ = getattr(self, items[0].data.value, self.__default__)(context, items[0].children)
+        return context, items
+
+    def definition(self, context, items):
+        context, _ = getattr(self, items[0].data.value, self.__default__)(context, items[0].children)
+        return context, items
 
     # def type_claim(self, context, items):
     #     return context, items
@@ -87,11 +96,11 @@ class IRTransformer(RecursiveTransformerWithContext):
     # def literal_string(self, context, items):
     #     return context, items
 
-    # def literal_signed_float(self, context, items):
-    #     return context, items
+    def literal_signed_float(self, context, items):
+        return context, ir.Constant(ir.DoubleType(), items[0].value)
 
-    # def literal_signed_int(self, context, items):
-    #     return context, items
+    def literal_signed_int(self, context, items):
+        return context, ir.Constant(ir.IntType(64), items[0].value)
 
     # def literal_int(self, context, items):
     #     return context, items
@@ -102,78 +111,72 @@ class IRTransformer(RecursiveTransformerWithContext):
     # def literal_int(self, context, items):
     #     return context, items
 
-    # def int64(self, context, items):
-    #     return context, items
+    def int64(self, context, items):
+        return context, ir.IntType(64)
 
-    # def int32(self, context, items):
-    #     return context, items
+    def int32(self, context, items):
+        return context, ir.IntType(32)
+
+    def float32(self, context, items):
+        return context, ir.FloatType()
+
+    def float64(self, context, items):
+        return context, ir.DoubleType()
 
     # def string(self, context, items):
     #     return context, items
 
-    def definition_forward(self, context, items):
+    def type_claim(self, context, items):
         return context, items
 
-    def definition_backward(self, context, items):
+    def type_claim(self, context, items):
         return context, items
 
-    def type_claim_forward(self, context, items):
+    def param_claim(self, context, items):
         return context, items
 
-    def type_claim_backward(self, context, items):
+    def param_claim(self, context, items):
         return context, items
 
-    def param_claim_forward(self, context, items):
-        return context, items
+    def add(self, context, items):
+        context, items = self._op(context, items)
+        return context, context.builder.fadd(*items, name="add")
 
-    def param_claim_backward(self, context, items):
-        return context, items
+    def sub(self, context, items):
+        context, items = self._op(context, items)
+        return context, context.builder.fsub(*items, name="sub")
 
-    def add_forward(self, context, items):
-        return context, items
+    def mul(self, context, items):
+        context, items = self._op(context, items)
+        return context, context.builder.fmul(*items, name="mul")
 
-    def add_backward(self, context, items):
-        return context, items
+    def div(self, context, items):
+        context, items = self._op(context, items)
+        return context, context.builder.fdiv(*items, name="div")
 
-    def sub_forward(self, context, items):
-        return context, items
+    def _op(self, context, items):
+        atomic = []
+        for op in items:
+            if isinstance(op, Token):
+                context, a = getattr(self, items[1].data, self.__default__)(context, items[1].children)
+            else:
+                context, a = getattr(self, op.data, self.__default__)(context, op.children)
+            atomic.append(a)
+        return context, atomic
 
-    def sub_backward(self, context, items):
-        return context, items
+    def single_statement(self, context, items):
+        context, out = getattr(self, items[1].data, self.__default__)(context, items[1].children)
+        return context, out
 
-    def mul_forward(self, context, items):
-        return context, items
-
-    def div_forward(self, context, items):
-        return context, items
-
-    def div_backward(self, context, items):
-        return context, items
-    # def single_statement(self, context, items):
-    #     return context, items
-
-    def func_input_params_forward(self, context, items):
-        return context, items
-
-    def func_input_params_backward(self, context, items):
+    def func_input_params(self, context, items):
         func_input_params = []
-        for i in items:  # extremely inefficient
-            if i.children[1].data == 'int64':
-                func_input_params.append(ir.IntType(64))
-            elif i.children[1].data == 'float64':
-                func_input_params.append(ir.DoubleType())
-            elif i.children[1].data == 'float32':
-                func_input_params.append(ir.FloatType())
-            elif i.children[1].data == 'int32':
-                func_input_params.append(ir.IntType(32))
+        for i in items:
+            context, param = getattr(self, i.children[1].data, self.__default__)(context, i.children)
+            func_input_params.append(param)
         context.func_input_params = tuple(func_input_params)
         return context, items
 
-    def func_output_params_forward(self, context, items):
-        return context, items
-
-    def func_output_params_backward(self, context, items):
-        # context.func_output_params = items.value
+    def func_output_params(self, context, items):
         double = ir.DoubleType()
         ftype = ir.FunctionType(double, context.func_input_params)
         context.func = ir.Function(context.module, ftype, name=context.func_name)
@@ -181,21 +184,21 @@ class IRTransformer(RecursiveTransformerWithContext):
         context.builder = ir.IRBuilder(context.block)
         return context, items
 
-    def func_definition_forward(self, context, items):
+    def func_definition(self, context, items):
         context.func_name = items[0].children[0].value
+        for i in items[1:]:
+            context, _ = getattr(self, i.data.value, self.__default__)(context, i.children)
+
         return context, items
 
-    def func_definition_backward(self, context, items):
-        return context, items
-
-    def statements_forward(self, context, items):
-        return context, items
-
-    def statements_backward(self, context, items):
-        a, b = context.func.args
-        a = context.builder.sitofp(a, ir.DoubleType())
-        b = context.builder.sitofp(b, ir.DoubleType())
-        context.builder.ret(context.builder.fadd(a, b, name="res"))
+    def statements(self, context, items):
+        for i in items:
+            if not isinstance(i, Token):
+                context, _ = getattr(self, i.data.value, self.__default__)(context, i.children)
+        # a, b = context.func.args
+        # a = context.builder.sitofp(a, ir.DoubleType())
+        # b = context.builder.sitofp(b, ir.DoubleType())
+        # context.builder.ret(context.builder.fadd(a, b, name="res"))
         return context, items
 
     def null(self, _): return None
@@ -206,13 +209,11 @@ class IRTransformer(RecursiveTransformerWithContext):
 json_parser = Lark.open('dasein.lark', rel_to=__file__, parser='lalr')
 text = '''
 func main(a: float64, b: float32) -> (int64, bool) {
-    c := "aaaabbbccc"
     d := 123 + 12 * 99 - 1
     e := -12
 }
 
 func foo1(a: int64, b: float32) -> float64 {
-    fff := "asdfads"
     e := -12
 }
 '''
