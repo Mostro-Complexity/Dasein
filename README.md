@@ -74,4 +74,8 @@ intern func main(argc: string, argv: [,]interface{}) {
         {grade: 2, name: "alice"}
     }
 }
+
+func foo2(a: int64, b: float32) {
+    a := memory.alloc([]int32, {100, 4})
+}
 ```

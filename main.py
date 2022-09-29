@@ -4,7 +4,7 @@ from lark.tree import Tree
 from lark.lexer import Token
 from lark.visitors import Transformer
 from llvmlite import ir
-from typing import TypeVar, Dict, Set, Any
+from typing import TypeVar, Dict, Set, Any, Tuple, List, Union
 from addict import Dict as NamedDict
 from enum import Enum
 
@@ -96,11 +96,23 @@ class IRTransformer(RecursiveTransformerWithContext):
     # def literal_string(self, context, items):
     #     return context, items
 
-    def literal_signed_float(self, context, items):
-        return context, ir.Constant(ir.DoubleType(), items[0].value)
+    def literal_signed_float(self, context, items):  # TODO: 确定具体类型
+        return context, self._estimate_float_bits(float(items[0].value))
 
-    def literal_signed_int(self, context, items):
-        return context, ir.Constant(ir.IntType(64), items[0].value)
+    def literal_signed_int(self, context, items):  # TODO: 确定具体类型，以及混合类型的运算
+        return context, self._estimate_int_bits(int(items[0].value))
+
+    def _estimate_int_bits(self, val: int):
+        if -2**31 <= val and val < 2**31:
+            return ir.Constant(ir.IntType(32), val)
+        else:
+            return ir.Constant(ir.IntType(64), val)
+
+    def _estimate_float_bits(self, val: float):
+        if -3.4E+38 <= val and val < 3.4E+38:
+            return ir.Constant(ir.FloatType(), val)
+        else:
+            return ir.Constant(ir.DoubleType(), val)
 
     # def literal_int(self, context, items):
     #     return context, items
@@ -140,19 +152,38 @@ class IRTransformer(RecursiveTransformerWithContext):
 
     def add(self, context, items):
         context, items = self._op(context, items)
-        return context, context.builder.fadd(*items, name="add")
+        if isinstance(items[0], ir.Constant) and isinstance(items[1], ir.Constant):
+            return self._literal_calc(context, items, items[0].constant + items[1].constant)
+        else:
+            return context, context.builder.fadd(*items, name="add")
 
     def sub(self, context, items):
         context, items = self._op(context, items)
-        return context, context.builder.fsub(*items, name="sub")
+        if isinstance(items[0], ir.Constant) and isinstance(items[1], ir.Constant):
+            return self._literal_calc(context, items, items[0].constant - items[1].constant)
+        else:
+            return context, context.builder.fsub(*items, name="sub")
 
     def mul(self, context, items):
         context, items = self._op(context, items)
-        return context, context.builder.fmul(*items, name="mul")
+        if isinstance(items[0], ir.Constant) and isinstance(items[1], ir.Constant):
+            return self._literal_calc(context, items, items[0].constant * items[1].constant)
+        else:
+            return context, context.builder.fmul(*items, name="mul")
 
     def div(self, context, items):
         context, items = self._op(context, items)
-        return context, context.builder.fdiv(*items, name="div")
+        if isinstance(items[0], ir.Constant) and isinstance(items[1], ir.Constant):
+            return self._literal_calc(context, items, items[0].constant / items[1].constant)
+        else:
+            return context, context.builder.fdiv(*items, name="div")
+
+    def _literal_calc(self, context: NamedDict, items: List, result: Union[int, float]) -> Tuple[NamedDict, List]:
+        if isinstance(items[0].type, ir.DoubleType) or isinstance(items[1].type, ir.DoubleType):
+            return context, ir.Constant(ir.DoubleType(), result)
+        if isinstance(items[0].type, ir.FloatType) or isinstance(items[1].type, ir.FloatType):
+            return context, self._estimate_float_bits(result)
+        return context, self._estimate_int_bits(result)
 
     def _op(self, context, items):
         atomic = []
@@ -166,7 +197,9 @@ class IRTransformer(RecursiveTransformerWithContext):
 
     def single_statement(self, context, items):
         context, out = getattr(self, items[1].data, self.__default__)(context, items[1].children)
-        return context, out
+        s_ptr = context.builder.alloca(out.type)
+        context.builder.store(out, s_ptr)
+        return context, s_ptr
 
     def func_input_params(self, context, items):
         func_input_params = []
@@ -209,8 +242,8 @@ class IRTransformer(RecursiveTransformerWithContext):
 json_parser = Lark.open('dasein.lark', rel_to=__file__, parser='lalr')
 text = '''
 func main(a: float64, b: float32) -> (int64, bool) {
-    d := 123 + 12 * 99 - 1
-    e := -12
+    d := 123.4 + 12 * 99.8 - 1
+    e := -12.5
 }
 
 func foo1(a: int64, b: float32) -> float64 {
@@ -220,5 +253,5 @@ func foo1(a: int64, b: float32) -> float64 {
 tree = json_parser.parse(text)
 print(tree.pretty())
 context = NamedDict(module=ir.Module(name=__file__))
-print(IRTransformer().transform(context, tree))
+context, _ = IRTransformer().transform(context, tree)
 print(context.module)
