@@ -27,14 +27,15 @@ func_definition : func_constraint? "func" typename "(" func_input_params ")" "->
 statements : (single_statement NEWLINE)*
 
 // single line executable statement
-single_statement : varname ":=" sum
+single_statement : varname ":=" sum -> assignment_statement
+                 | "return" sum -> return_clause
 
 // varname statement
 varname : CNAME
 
 // interface definition body
 interface_definition : "type" typename "interface" "{" interface_claims "}"
-interface_claims : "not_implement"// TODO: only takes method and member for now
+interface_claims : "not_implement" // TODO: only takes method and member for now
 
 // basic definition
 basic_definition : "int32" -> int32
@@ -47,10 +48,8 @@ basic_definition : "int32" -> int32
 atom : ESCAPED_STRING -> literal_string
      | SIGNED_FLOAT -> literal_signed_float
      | SIGNED_INT -> literal_signed_int
-     | INT -> literal_int
-     | FLOAT -> literal_float
-     | "-" atom
      | varname
+     | "-" atom
      | "(" sum ")"
 
 ?sum : product

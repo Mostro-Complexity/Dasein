@@ -34,18 +34,6 @@ class RecursiveTransformerWithContext(object):
         """
         return context, children
 
-    def _call_forwardfunc(self, context, tree):
-        if isinstance(tree.data, Token):
-            return getattr(self,  FORWARD_METHOD_TITLE.format(tree.data.value), self.__default__)(context, tree.children)
-        elif isinstance(tree.data, str):
-            return getattr(self, tree.data, self.__default__)(context, tree)
-
-    def _call_backwardfunc(self, context, tree):
-        if isinstance(tree.data, Token):
-            return getattr(self, BACKWARD_METHOD_TITLE.format(tree.data.value), self.__default__)(context, tree.children)
-        elif isinstance(tree.data, str):
-            return getattr(self, tree.data, self.__default__)(context, tree)
-
     def _call_userfunc(self, context, tree):
         if isinstance(tree.data, Token):
             return getattr(self, tree.data.value, self.__default__)(context, tree.children)
@@ -56,6 +44,7 @@ class RecursiveTransformerWithContext(object):
 class IRTransformer(RecursiveTransformerWithContext):
 
     def start(self, context, items):
+        context.symbol = dict() 
         for i in items:
             context, _ = getattr(self, i.data, self.__default__)(context, i.children)
         return context, items
@@ -86,20 +75,17 @@ class IRTransformer(RecursiveTransformerWithContext):
 
     # def typename(self, context, items):
     #     return context, items
-
-    # def sum(self, context, items):
-    #     return context, items
-
-    # def atom(self, context, items):
-    #     return context, items[0]
+    def varname(self, context, items):
+        context.symbol[items[0].value] = None
+        return context, items[0]  # TODO: 获取符号表内的符号
 
     # def literal_string(self, context, items):
     #     return context, items
 
-    def literal_signed_float(self, context, items):  # TODO: 确定具体类型
+    def literal_signed_float(self, context, items):
         return context, self._estimate_float_bits(float(items[0].value))
 
-    def literal_signed_int(self, context, items):  # TODO: 确定具体类型，以及混合类型的运算
+    def literal_signed_int(self, context, items):
         return context, self._estimate_int_bits(int(items[0].value))
 
     def _estimate_int_bits(self, val: int):
@@ -114,20 +100,26 @@ class IRTransformer(RecursiveTransformerWithContext):
         else:
             return ir.Constant(ir.DoubleType(), val)
 
-    # def literal_int(self, context, items):
-    #     return context, items
+    def atom(self, context, items):
+        return getattr(self, items[0].data.value, self.__default__)(context, items[0].children)
 
-    # def literal_float(self, context, items):
-    #     return context, items
+    def bool(self, context, items, is_output=True):
+        if is_output:
+            return context, ir.IntType(8).as_pointer()
+        else:
+            return context, ir.IntType(64)
 
-    # def literal_int(self, context, items):
-    #     return context, items
+    def int64(self, context, items, is_output=True):
+        if is_output:
+            return context, ir.IntType(64).as_pointer()
+        else:
+            return context, ir.IntType(64)
 
-    def int64(self, context, items):
-        return context, ir.IntType(64)
-
-    def int32(self, context, items):
-        return context, ir.IntType(32)
+    def int32(self, context, items, is_output=True):
+        if is_output:
+            return context, ir.IntType(32).as_pointer()
+        else:
+            return context, ir.IntType(32)
 
     def float32(self, context, items):
         return context, ir.FloatType()
@@ -195,43 +187,44 @@ class IRTransformer(RecursiveTransformerWithContext):
             atomic.append(a)
         return context, atomic
 
-    def single_statement(self, context, items):
+    def assignment_statement(self, context, items):
         context, out = getattr(self, items[1].data, self.__default__)(context, items[1].children)
         s_ptr = context.builder.alloca(out.type)
         context.builder.store(out, s_ptr)
         return context, s_ptr
 
+    def return_clause(self, context, items):
+        return getattr(self, items[0].data.value, self.__default__)(context, items[0].children)
+
     def func_input_params(self, context, items):
-        func_input_params = []
-        for i in items:
+        context.func_params = []
+        for i in items:  # List[param_claim]
             context, param = getattr(self, i.children[1].data, self.__default__)(context, i.children)
-            func_input_params.append(param)
-        context.func_input_params = tuple(func_input_params)
+            context.func_params.append(param)
         return context, items
 
     def func_output_params(self, context, items):
+        for i in items:  # List[typename]
+            context, param = getattr(self, i.children[0].value, self.__default__)(context, i.children)
+            context.func_params.append(param)
         double = ir.DoubleType()
-        ftype = ir.FunctionType(double, context.func_input_params)
-        context.func = ir.Function(context.module, ftype, name=context.func_name)
-        context.block = context.func.append_basic_block(name="{:s}_entry".format(context.func_name))
-        context.builder = ir.IRBuilder(context.block)
+        context.ftype = ir.FunctionType(double, context.func_params)
         return context, items
 
     def func_definition(self, context, items):
         context.func_name = items[0].children[0].value
-        for i in items[1:]:
+        for i in items[1:]:  # func_input_params -> func_output_params -> statements
             context, _ = getattr(self, i.data.value, self.__default__)(context, i.children)
 
         return context, items
 
     def statements(self, context, items):
-        for i in items:
+        context.func = ir.Function(context.module, context.ftype, name=context.func_name)
+        context.block = context.func.append_basic_block(name="{:s}_entry".format(context.func_name))
+        context.builder = ir.IRBuilder(context.block)
+        for i in items:  # List[single_statement]
             if not isinstance(i, Token):
-                context, _ = getattr(self, i.data.value, self.__default__)(context, i.children)
-        # a, b = context.func.args
-        # a = context.builder.sitofp(a, ir.DoubleType())
-        # b = context.builder.sitofp(b, ir.DoubleType())
-        # context.builder.ret(context.builder.fadd(a, b, name="res"))
+                context, _ = getattr(self, i.data, self.__default__)(context, i.children)
         return context, items
 
     def null(self, _): return None
@@ -244,10 +237,12 @@ text = '''
 func main(a: float64, b: float32) -> (int64, bool) {
     d := 123.4 + 12 * 99.8 - 1
     e := -12.5
+    return e
 }
 
 func foo1(a: int64, b: float32) -> float64 {
     e := -12
+    return e
 }
 '''
 tree = json_parser.parse(text)
