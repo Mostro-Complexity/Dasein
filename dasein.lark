@@ -28,7 +28,7 @@ statements : (single_statement NEWLINE)*
 
 // single line executable statement
 single_statement : varname ":=" sum -> assignment_statement
-                 | "return" sum -> return_clause
+                 | "return" sum ("," sum)* -> return_clause
 
 // varname statement
 varname : CNAME
